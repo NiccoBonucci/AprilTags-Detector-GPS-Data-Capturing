@@ -112,5 +112,6 @@ Every time you press the "c" button on the keyboard, the script subscribes to th
   "/cube_pose/tag12": PoseStamped, <br />
   "/cube_pose/tag13": PoseStamped, <br />
   "/cube_pose/tag14": PoseStamped, <br />
+  "/fix": NavSatFix, <br />
 
 It also saves the RGB and depth image in .png format.
