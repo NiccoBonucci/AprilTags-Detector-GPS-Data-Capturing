@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="cube_pose_estimator"
+        type="snapshot_capture_node.py"
+        name="snapshot_capture_node"
+        output="screen">
+    <param name="output_root" value="$(find cube_pose_estimator)/apriltag_snapshots" />
+  </node>
+</launch>
