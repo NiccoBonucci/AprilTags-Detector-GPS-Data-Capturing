@@ -50,15 +50,15 @@ NODES
     cube_pose_node (cube_pose_estimator/multi_cube_pose_node.py)
 ...
 
-[INFO] [1777909852.612552039]: Loaded tag config: 10, size: 0.125, frame_name: tag10
-[INFO] [1777909852.612577095]: Loaded tag config: 11, size: 0.125, frame_name: tag11
-[INFO] [1777909852.612582517]: Loaded tag config: 12, size: 0.125, frame_name: tag12
-[INFO] [1777909852.612596753]: Loaded tag config: 13, size: 0.125, frame_name: tag13
-[INFO] [1777909852.612601593]: Loaded tag config: 14, size: 0.125, frame_name: tag14
-[WARN] [1777909852.612779608]: No tag bundles specified
-[WARN] [1777909852.612962302]: remove_duplicates parameter not provided. Defaulting to true
-[INFO] [1777909852.844341]: cube_pose_node started.
-[INFO] [1777909852.847135]: Listening on /tag_detections and publishing /cube_pose/tagXX for all visible tags
+[INFO] [1777909852.612552039]: Loaded tag config: 10, size: 0.125, frame_name: tag10 < br / >
+[INFO] [1777909852.612577095]: Loaded tag config: 11, size: 0.125, frame_name: tag11 < br / >
+[INFO] [1777909852.612582517]: Loaded tag config: 12, size: 0.125, frame_name: tag12 < br / >
+[INFO] [1777909852.612596753]: Loaded tag config: 13, size: 0.125, frame_name: tag13 < br / >
+[INFO] [1777909852.612601593]: Loaded tag config: 14, size: 0.125, frame_name: tag14 < br / >
+[WARN] [1777909852.612779608]: No tag bundles specified < br / >
+[WARN] [1777909852.612962302]: remove_duplicates parameter not provided. Defaulting to true < br / >
+[INFO] [1777909852.844341]: cube_pose_node started. < br / >
+[INFO] [1777909852.847135]: Listening on /tag_detections and publishing /cube_pose/tagXX for all visible tags < br / >
 
 Don't worry if only one tag is shown here, it's only the first tag that it is being read.
 
