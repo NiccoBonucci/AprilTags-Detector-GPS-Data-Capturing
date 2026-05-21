@@ -5,6 +5,8 @@ log/
 logs/
 .catkin_tools/
 
+src/cube_pose_estimator/apriltag_snapshots/
+
 *.pyc
 __pycache__/
 
