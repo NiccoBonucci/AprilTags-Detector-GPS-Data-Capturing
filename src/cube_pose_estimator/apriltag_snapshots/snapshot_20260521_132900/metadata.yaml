@@ -1,0 +1,74 @@
+snapshot_timestamp: '20260521_132900'
+ros_time_now: 1779362940.3907135
+available_topics:
+- /camera/color/camera_info
+- /camera/color/image_raw
+- /camera/depth/camera_info
+- /camera/depth/image_rect_raw
+- /cube_pose/all
+- /cube_pose/all_ids
+- /cube_pose/tag10
+- /cube_pose/tag11
+- /tag_detections
+visible_tag_ids:
+- 10
+- 11
+num_visible_tags: 2
+num_cube_poses: 2
+color_image:
+  width: 1280
+  height: 720
+  encoding: rgb8
+  frame_id: camera_color_optical_frame
+  stamp: 1779362940.3344824
+depth_image:
+  width: 848
+  height: 480
+  encoding: 16UC1
+  frame_id: camera_depth_optical_frame
+  stamp: 1779362940.3344824
+camera_info:
+  color:
+    frame_id: camera_color_optical_frame
+    stamp: 1779362940.3344824
+    width: 1280
+    height: 720
+    K:
+    - 909.42724609375
+    - 0.0
+    - 636.3795166015625
+    - 0.0
+    - 909.943115234375
+    - 377.3924255371094
+    - 0.0
+    - 0.0
+    - 1.0
+    D:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    distortion_model: plumb_bob
+  depth:
+    frame_id: camera_depth_optical_frame
+    stamp: 1779362940.3344824
+    width: 848
+    height: 480
+    K:
+    - 429.00531005859375
+    - 0.0
+    - 428.341796875
+    - 0.0
+    - 429.00531005859375
+    - 237.651123046875
+    - 0.0
+    - 0.0
+    - 1.0
+    D:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    distortion_model: plumb_bob
