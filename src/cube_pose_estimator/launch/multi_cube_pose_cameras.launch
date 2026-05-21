@@ -1,0 +1,8 @@
+<launch>
+  <include file="$(find cube_pose_estimator)/launch/apriltag_detector_cameras.launch"/>
+
+  <node pkg="cube_pose_estimator"
+        type="multi_cube_pose_node_cameras.py"
+        name="cube_pose_node"
+        output="screen"/>
+</launch>
