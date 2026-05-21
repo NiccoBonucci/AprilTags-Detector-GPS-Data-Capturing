@@ -1,0 +1,51 @@
+<launch>
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+
+        <arg name="serial_no" value="242322077007"/>
+        <arg name="camera" value="cam_up"/>
+        
+        <arg name="enable_color" value="true"/>
+        <arg name="color_width" value="640"/>
+        <arg name="color_height" value="480"/>
+        <arg name="color_fps" value="15"/>
+
+        <arg name="enable_depth" value="true"/>
+        <arg name="depth_width" value="640"/>
+        <arg name="depth_height" value="480"/>
+        <arg name="depth_fps" value="15"/>
+
+        <arg name="enable_infra1" value="false"/>
+        <arg name="enable_infra2" value="false"/>
+        <arg name="enable_gyro" value="false"/>
+        <arg name="enable_accel" value="false"/>
+
+        <arg name="align_depth" value="true"/>
+
+    </include>
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+
+        <arg name="serial_no" value="242322071571"/>
+        <arg name="camera" value="cam_down"/>
+
+        <arg name="enable_color" value="true"/>
+        <arg name="color_width" value="640"/>
+        <arg name="color_height" value="480"/>
+        <arg name="color_fps" value="15"/>
+
+        <arg name="enable_depth" value="true"/>
+        <arg name="depth_width" value="640"/>
+        <arg name="depth_height" value="480"/>
+        <arg name="depth_fps" value="15"/>
+
+        <arg name="enable_infra1" value="false"/>
+        <arg name="enable_infra2" value="false"/>
+        <arg name="enable_gyro" value="false"/>
+        <arg name="enable_accel" value="false"/>
+
+        <arg name="align_depth" value="true"/>
+
+    </include>
+
+</launch>

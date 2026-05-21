@@ -10,17 +10,20 @@ import select
 import termios
 import tty
 from datetime import datetime
-
+from pynput import mouse
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo, NavSatFix
 from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import PoseStamped, PoseArray
 from std_msgs.msg import Int32MultiArray
+import threading
 
 
 class SnapshotCaptureNode:
     def __init__(self):
         rospy.init_node("snapshot_capture_node")
+
+        self.snapshot_counter = 1
 
         self.bridge = CvBridge()
         self.latest_msgs = {}
@@ -51,6 +54,11 @@ class SnapshotCaptureNode:
             self.subs.append(
                 rospy.Subscriber(topic, msg_type, self.generic_callback, callback_args=topic, queue_size=1)
             )
+
+        self.mouse_listener = mouse.Listener(
+            on_click=self.on_click
+        )
+        self.mouse_listener.start()
 
         os.makedirs(self.output_root, exist_ok=True)
 
@@ -217,7 +225,8 @@ class SnapshotCaptureNode:
 
         self.write_metadata_yaml(snapshot_dir, timestamp)
 
-        rospy.loginfo("Snapshot saved in: %s", snapshot_dir)
+        rospy.loginfo("%d: Snapshot saved in: %s", self.snapshot_counter, snapshot_dir)
+        self.snapshot_counter+=1
 
     def get_key(self):
         fd = sys.stdin.fileno()
@@ -231,8 +240,15 @@ class SnapshotCaptureNode:
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
+    def on_click(self, x, y, button, pressed):
+        if pressed:
+            threading.Thread(
+                target=self.capture_snapshot,
+                daemon=True
+            ).start()
+
     def run(self):
-        rate = rospy.Rate(20)
+        rate = rospy.Rate(200)
         while not rospy.is_shutdown():
             key = self.get_key()
 
