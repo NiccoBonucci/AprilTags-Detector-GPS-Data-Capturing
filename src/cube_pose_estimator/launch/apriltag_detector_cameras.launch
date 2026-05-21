@@ -5,8 +5,8 @@
         output="screen"
         clear_params="true">
 
-    <remap from="image_rect" to="/camera_down/color/image_raw"/>
-    <remap from="camera_info" to="/camera_down/color/camera_info"/>
+    <remap from="image_rect" to="/cam_down/color/image_raw"/>
+    <remap from="camera_info" to="/cam_down/color/camera_info"/>
 
     <rosparam command="load"
               file="$(find cube_pose_estimator)/config/settings.yaml" />

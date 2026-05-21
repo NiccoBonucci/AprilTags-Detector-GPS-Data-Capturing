@@ -31,10 +31,10 @@ class SnapshotCaptureNode:
         )
 
         self.topics = {
-            "/camera_up/color/image_raw": Image,
-            "/camera_up/color/camera_info": CameraInfo,
-            "/camera_up/depth/image_rect_raw": Image,
-            "/camera_up/depth/camera_info": CameraInfo,
+            "/cam_up/color/image_raw": Image,
+            "/cam_up/color/camera_info": CameraInfo,
+            "/cam_up/depth/image_rect_raw": Image,
+            "/cam_up/depth/camera_info": CameraInfo,
             "/tag_detections": AprilTagDetectionArray,
             "/cube_pose/all": PoseArray,
             "/cube_pose/all_ids": Int32MultiArray,
@@ -98,8 +98,8 @@ class SnapshotCaptureNode:
             metadata["num_cube_poses"] = len(pose_array_msg.poses)
 
         # Color image info
-        if "/camera_up/color/image_raw" in self.latest_msgs:
-            img_msg = self.latest_msgs["/camera_up/color/image_raw"]
+        if "/cam_up/color/image_raw" in self.latest_msgs:
+            img_msg = self.latest_msgs["/cam_up/color/image_raw"]
             metadata["color_image"] = {
                 "width": img_msg.width,
                 "height": img_msg.height,
@@ -109,8 +109,8 @@ class SnapshotCaptureNode:
             }
 
         # Depth image info
-        if "/camera_up/depth/image_rect_raw" in self.latest_msgs:
-            depth_msg = self.latest_msgs["/camera_up/depth/image_rect_raw"]
+        if "/cam_up/depth/image_rect_raw" in self.latest_msgs:
+            depth_msg = self.latest_msgs["/cam_up/depth/image_rect_raw"]
             metadata["depth_image"] = {
                 "width": depth_msg.width,
                 "height": depth_msg.height,
@@ -120,8 +120,8 @@ class SnapshotCaptureNode:
             }
 
         # Camera info
-        if "/camera_up/color/camera_info" in self.latest_msgs:
-            cam_info = self.latest_msgs["/camera_up/color/camera_info"]
+        if "/cam_up/color/camera_info" in self.latest_msgs:
+            cam_info = self.latest_msgs["/cam_up/color/camera_info"]
             metadata["camera_info"]["color"] = {
                 "frame_id": cam_info.header.frame_id,
                 "stamp": cam_info.header.stamp.to_sec(),
@@ -132,8 +132,8 @@ class SnapshotCaptureNode:
                 "distortion_model": cam_info.distortion_model,
             }
 
-        if "/camera_up/depth/camera_info" in self.latest_msgs:
-            cam_info = self.latest_msgs["/camera_up/depth/camera_info"]
+        if "/cam_up/depth/camera_info" in self.latest_msgs:
+            cam_info = self.latest_msgs["/cam_up/depth/camera_info"]
             metadata["camera_info"]["depth"] = {
                 "frame_id": cam_info.header.frame_id,
                 "stamp": cam_info.header.stamp.to_sec(),
@@ -194,14 +194,14 @@ class SnapshotCaptureNode:
         for topic, msg in self.latest_msgs.items():
             safe_name = topic.strip("/").replace("/", "__")
 
-            if topic == "/camera_up/color/image_raw":
+            if topic == "/cam_up/color/image_raw":
                 try:
                     self.save_color_image(msg, os.path.join(snapshot_dir, f"{safe_name}.png"))
                 except Exception as e:
                     rospy.logwarn("Failed saving color image: %s", str(e))
                     self.msg_to_yaml_file(msg, os.path.join(snapshot_dir, f"{safe_name}.txt"))
 
-            elif topic == "/camera_up/depth/image_rect_raw":
+            elif topic == "/cam_up/depth/image_rect_raw":
                 try:
                     self.save_depth_image(
                         msg,
