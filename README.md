@@ -24,7 +24,8 @@ source devel/setup.bash
 
 Now your workspace is ready for the detection and data gathering system to be executed.
 
-# AprilTags Detector and Pose estimator
+# SINGLE CAMERA
+# AprilTags Detector and Pose estimator 
 To be able to make the system work, you will need the Intel realsense2 package installed in your computer. You can both install it from source or via GitHub package.
 After verifying that the camera works, open the following terminal and execute the commands in the following order:
 
@@ -104,6 +105,81 @@ Every time you press the "c" button on the keyboard, the script subscribes to th
   "/camera/color/camera_info": CameraInfo, <br />
   "/camera/depth/image_rect_raw": Image, <br />
   "/camera/depth/camera_info": CameraInfo, <br />
+  "/tag_detections": AprilTagDetectionArray, <br />
+  "/cube_pose/all": PoseArray, <br />
+  "/cube_pose/all_ids": Int32MultiArray, <br />
+  "/cube_pose/tag10": PoseStamped, <br />
+  "/cube_pose/tag11": PoseStamped, <br />
+  "/cube_pose/tag12": PoseStamped, <br />
+  "/cube_pose/tag13": PoseStamped, <br />
+  "/cube_pose/tag14": PoseStamped, <br />
+  "/fix": NavSatFix, <br />
+
+It also saves the RGB and depth image in .png format.
+
+# DOUBLE CAMERA
+# AprilTags Detector and Pose estimator 
+To be able to make the system work, you will need the Intel realsense2 package installed in your computer. You can both install it from source or via GitHub package.
+After verifying that the camera works, open the following terminal and execute the commands in the following order:
+
+1) Activate the Realsense camera with depth channel:
+```bash
+roslaunch cube_pose_estimator cameras.launch 
+```
+2) Visualize if the camera is active and if the depth topics are being displayed correctly:
+```bash
+rqt
+```
+When the rqt window opens, you have to open the two image visualizers, one for the topic "camera_up/color/image_raw/" and the other for "camera_down/color/image_raw/"
+
+3) Launch the ApriTags Cube pose estimator for the detection of multiple tags at the same time:
+```bash
+roslaunch cube_pose_estimator multi_cube_pose_cameras.launch 
+```
+You should see an output similar to the one for the single camera.
+
+4) Check if all the topics are being published:
+```bash
+rostopic list
+```
+If the estimator is working correctly, you should see the following topics:
+
+/cube_pose/all <br />
+/cube_pose/all_ids <br />
+
+These two topics contain, respectively, the poses of all the AprilTags being detected and the corresponding IDs in order of publication (the first ID published on the /cube_pose/all_ids corresponds to the first pose published in /cube_pose/all)   
+
+# Data Capturing 
+To use the Data Capturing system, launch the following command:
+```bash
+roslaunch cube_pose_estimator snapshot_capture_cameras.launch
+```
+You should see the following log:
+
+SUMMARY
+======== <br />
+
+PARAMETERS <br />
+ * /rosdistro: noetic <br />
+ * /rosversion: 1.17.4 <br />
+ * /snapshot_capture_node/output_root: /home/simulator/D... <br />
+
+NODES <br />
+  /
+    snapshot_capture_node (cube_pose_estimator/snapshot_capture_node.py) <br />
+
+ROS_MASTER_URI=http://localhost:11311 <br />
+
+process[snapshot_capture_node-1]: started with pid [222148] <br />
+[INFO] [1777909940.104008]: snapshot_capture_node started. <br />
+[INFO] [1777909940.104976]: Press 'c' to capture snapshot, 'q' to quit. <br />
+
+Every three times you press the ">" button on the pointer (or press the "c" button on the keyboard), the script subscribes to the following topics (IF they are being published) and saves the data at that exact moment:
+
+  "/camera_up/color/image_raw": Image, <br />
+  "/camera_up/color/camera_info": CameraInfo, <br />
+  "/camera_up/depth/image_rect_raw": Image, <br />
+  "/camera_up/depth/camera_info": CameraInfo, <br />
   "/tag_detections": AprilTagDetectionArray, <br />
   "/cube_pose/all": PoseArray, <br />
   "/cube_pose/all_ids": Int32MultiArray, <br />
