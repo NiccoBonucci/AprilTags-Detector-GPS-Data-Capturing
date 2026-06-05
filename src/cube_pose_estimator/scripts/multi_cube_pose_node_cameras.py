@@ -6,9 +6,10 @@ import rospy
 
 from geometry_msgs.msg import PoseStamped, PoseArray, TransformStamped
 from std_msgs.msg import Int32MultiArray
+from cube_pose_estimator.msg import CubePoseArray
 
 from apriltag_ros.msg import AprilTagDetectionArray
-
+from std_msgs.msg import Float64
 
 import tf2_ros
 from tf.transformations import quaternion_matrix, quaternion_from_matrix
@@ -100,9 +101,13 @@ class CubePoseEstimator:
             13: rospy.Publisher("/cube_pose/tag13", PoseStamped, queue_size=10),
             14: rospy.Publisher("/cube_pose/tag14", PoseStamped, queue_size=10),
         }
-        
-        self.pose_array_pub = rospy.Publisher("/cube_pose/all", PoseArray, queue_size=10)
-        self.pose_ids_pub = rospy.Publisher("/cube_pose/all_ids", Int32MultiArray, queue_size=10)
+
+        self.cube_pose_array_pub = rospy.Publisher("/cube_pose/current", CubePoseArray, queue_size=10)
+        #self.pose_array_pub = rospy.Publisher("/cube_pose/all", PoseArray, queue_size=10)
+        #self.pose_ids_pub = rospy.Publisher("/cube_pose/all_ids", Int32MultiArray, queue_size=10)
+
+        self.fused_pose_pub = rospy.Publisher("/cube_pose/fused", PoseStamped, queue_size=10)
+        self.azimuth_pub = rospy.Publisher("/cube_pose/azimuth_deg", Float64, queue_size=10)
         
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
 
@@ -154,15 +159,17 @@ class CubePoseEstimator:
         if not msg.detections:
             return
 
+        """
         pose_array_msg = PoseArray()
         pose_array_msg.header = msg.header
         ids_msg = Int32MultiArray()
+        """
 
-        R_user_cam = np.array([
-            [0.0,  0.0,  1.0],
-            [-1.0, 0.0,  0.0],
-            [0.0, -1.0,  0.0]
-        ])
+        cube_pose_array_msg = CubePoseArray()
+        cube_pose_array_msg.header = msg.header
+
+        T_user_cube_list = []
+        tag_id_list = []
 
         valid_count = 0
 
@@ -195,12 +202,20 @@ class CubePoseEstimator:
             T_user_cube[:3, :3] = R_user_cube
             T_user_cube[:3, 3] = t_user_cube
 
+            T_user_cube_list.append(T_user_cube)
+            tag_id_list.append(tag_id)
+
             # Publish per-tag pose
             cube_pose_msg = matrix_to_pose_stamped(T_user_cube, msg.header)
             self.pose_pubs[tag_id].publish(cube_pose_msg)
+
+            cube_pose_array_msg.ids.append(tag_id)
+            cube_pose_array_msg.poses.append(cube_pose_msg.pose)
             
+            """
             pose_array_msg.poses.append(cube_pose_msg.pose)
             ids_msg.data.append(tag_id)
+            """
 
             # Publish TF per tag
             tf_msg = TransformStamped()
@@ -266,9 +281,48 @@ class CubePoseEstimator:
             
             valid_count += 1
         
+        """
         if len(pose_array_msg.poses) > 0:
             self.pose_array_pub.publish(pose_array_msg)
             self.pose_ids_pub.publish(ids_msg)
+        """
+        
+        if len(cube_pose_array_msg.ids) > 0:
+            self.cube_pose_array_pub.publish(cube_pose_array_msg)
+
+        if len(T_user_cube_list) > 0:
+            # Fuse positions
+            positions = np.array([T[:3, 3] for T in T_user_cube_list])
+            fused_position = np.mean(positions, axis=0)
+
+            # Choose orientation from the estimate closest to fused position
+            dists = np.linalg.norm(positions - fused_position, axis=1)
+            best_idx = np.argmin(dists)
+            T_fused = np.array(T_user_cube_list[best_idx], copy=True)
+            T_fused[:3, 3] = fused_position
+
+            # Publish fused cube pose
+            fused_pose_msg = matrix_to_pose_stamped(T_fused, msg.header)
+            self.fused_pose_pub.publish(fused_pose_msg)
+
+            # Compute camera pose in cube frame
+            T_cube_user = invert_transform(T_fused)
+            cam_in_cube = T_cube_user[:3, 3]
+
+            # Azimuth in radians -> degrees
+            azimuth_rad = math.atan2(cam_in_cube[1], cam_in_cube[0])
+            azimuth_deg = math.degrees(azimuth_rad)
+
+            self.azimuth_pub.publish(Float64(data=azimuth_deg))
+
+            rospy.loginfo_throttle(
+                0.5,
+                "FUSED cube center = [%.3f, %.3f, %.3f], azimuth = %.2f deg",
+                fused_position[0],
+                fused_position[1],
+                fused_position[2],
+                azimuth_deg
+            )
 
 
 if __name__ == "__main__":

@@ -14,8 +14,11 @@ from datetime import datetime
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo, NavSatFix
 from apriltag_ros.msg import AprilTagDetectionArray
-from geometry_msgs.msg import PoseStamped, PoseArray
-from std_msgs.msg import Int32MultiArray
+
+from geometry_msgs.msg import PoseStamped
+from cube_pose_estimator.msg import CubePoseArray
+from std_msgs.msg import Float64
+
 
 
 class SnapshotCaptureNode:
@@ -24,6 +27,9 @@ class SnapshotCaptureNode:
 
         self.bridge = CvBridge()
         self.latest_msgs = {}
+        self.capture_requested = False
+        self.capture_in_progress = False
+        self.capture_t_ref = None
 
         self.output_root = rospy.get_param(
             "~output_root",
@@ -36,13 +42,14 @@ class SnapshotCaptureNode:
             "/cam_up/depth/image_rect_raw": Image,
             "/cam_up/depth/camera_info": CameraInfo,
             "/tag_detections": AprilTagDetectionArray,
-            "/cube_pose/all": PoseArray,
-            "/cube_pose/all_ids": Int32MultiArray,
             "/cube_pose/tag10": PoseStamped,
             "/cube_pose/tag11": PoseStamped,
             "/cube_pose/tag12": PoseStamped,
             "/cube_pose/tag13": PoseStamped,
             "/cube_pose/tag14": PoseStamped,
+            "/cube_pose/current": CubePoseArray,
+            "/cube_pose/fused": PoseStamped,
+            "/cube_pose/azimuth_deg": Float64,
             "/fix": NavSatFix,
         }
 
@@ -60,15 +67,86 @@ class SnapshotCaptureNode:
     def generic_callback(self, msg, topic_name):
         self.latest_msgs[topic_name] = msg
 
+        # If user requested a capture, anchor it on the NEXT /cube_pose/all frame
+        if topic_name == "/cube_pose/current" and self.capture_requested and not self.capture_in_progress:
+            self.capture_in_progress = True
+            self.capture_t_ref = msg.header.stamp
+            self.capture_snapshot()
+            self.capture_requested = False
+            self.capture_in_progress = False
+
+    def is_close_in_time(self, msg, t_ref, tol=0.05):
+        if not hasattr(msg, "header"):
+            return False
+        dt = abs((msg.header.stamp - t_ref).to_sec())
+        return dt <= tol
+
     def msg_to_yaml_file(self, msg, filepath):
         with open(filepath, "w") as f:
             f.write(str(msg))
 
-    def write_metadata_yaml(self, snapshot_dir, timestamp):
+    def write_combined_cube_pose_file(self, snapshot_dir, cube_pose_msg):
+        combined = {
+            "header": {
+                "seq": cube_pose_msg.header.seq,
+                "stamp": {
+                    "secs": cube_pose_msg.header.stamp.secs,
+                    "nsecs": cube_pose_msg.header.stamp.nsecs,
+                },
+                "frame_id": cube_pose_msg.header.frame_id,
+            },
+            "num_ids": len(cube_pose_msg.ids),
+            "num_poses": len(cube_pose_msg.poses),
+            "ids": list(cube_pose_msg.ids),
+            "poses": [],
+            "id_pose_pairs": [],
+        }
+
+        for pose in cube_pose_msg.poses:
+            pose_dict = {
+                "position": {
+                    "x": pose.position.x,
+                    "y": pose.position.y,
+                    "z": pose.position.z,
+                },
+                "orientation": {
+                    "x": pose.orientation.x,
+                    "y": pose.orientation.y,
+                    "z": pose.orientation.z,
+                    "w": pose.orientation.w,
+                },
+            }
+            combined["poses"].append(pose_dict)
+
+        n = min(len(cube_pose_msg.ids), len(cube_pose_msg.poses))
+        for i in range(n):
+            pose = cube_pose_msg.poses[i]
+            combined["id_pose_pairs"].append({
+                "id": int(cube_pose_msg.ids[i]),
+                "pose": {
+                    "position": {
+                        "x": pose.position.x,
+                        "y": pose.position.y,
+                        "z": pose.position.z,
+                    },
+                    "orientation": {
+                        "x": pose.orientation.x,
+                        "y": pose.orientation.y,
+                        "z": pose.orientation.z,
+                        "w": pose.orientation.w,
+                    },
+                }
+            })
+
+        filepath = os.path.join(snapshot_dir, "cube_pose__current.yaml")
+        with open(filepath, "w") as f:
+            yaml.safe_dump(combined, f, sort_keys=False)
+            
+    def write_metadata_yaml(self, snapshot_dir, timestamp, msgs_to_save):
         metadata = {
             "snapshot_timestamp": timestamp,
             "ros_time_now": rospy.Time.now().to_sec(),
-            "available_topics": sorted(list(self.latest_msgs.keys())),
+            "available_topics": sorted(list(msgs_to_save.keys())),
             "visible_tag_ids": [],
             "num_visible_tags": 0,
             "num_cube_poses": 0,
@@ -76,14 +154,17 @@ class SnapshotCaptureNode:
             "depth_image": {},
             "camera_info": {},
             "gps": {},
+            "fused_pose": {},
+            "azimuth_deg": None,
         }
 
-        # Visible tag IDs from your custom topic, if present
-        if "/cube_pose/all_ids" in self.latest_msgs:
-            ids_msg = self.latest_msgs["/cube_pose/all_ids"]
-            metadata["visible_tag_ids"] = list(ids_msg.data)
-        elif "/tag_detections" in self.latest_msgs:
-            det_msg = self.latest_msgs["/tag_detections"]
+        # Visible tag IDs from the synchronized cube pose message, if present
+        if "/cube_pose/current" in msgs_to_save:
+            cube_pose_msg = msgs_to_save["/cube_pose/current"]
+            metadata["visible_tag_ids"] = list(cube_pose_msg.ids)
+
+        elif "/tag_detections" in msgs_to_save:
+            det_msg = msgs_to_save["/tag_detections"]
             ids = []
             for det in det_msg.detections:
                 if len(det.id) > 0:
@@ -92,14 +173,35 @@ class SnapshotCaptureNode:
 
         metadata["num_visible_tags"] = len(metadata["visible_tag_ids"])
 
-        # Number of cube poses from PoseArray, if present
-        if "/cube_pose/all" in self.latest_msgs:
-            pose_array_msg = self.latest_msgs["/cube_pose/all"]
-            metadata["num_cube_poses"] = len(pose_array_msg.poses)
+        if "/cube_pose/current" in msgs_to_save:
+            cube_pose_msg = msgs_to_save["/cube_pose/current"]
+            metadata["num_cube_poses"] = len(cube_pose_msg.poses)
+
+        if "/cube_pose/fused" in msgs_to_save:
+            fused_msg = msgs_to_save["/cube_pose/fused"]
+            metadata["fused_pose"] = {
+                "frame_id": fused_msg.header.frame_id,
+                "stamp": fused_msg.header.stamp.to_sec(),
+                "position": {
+                    "x": fused_msg.pose.position.x,
+                    "y": fused_msg.pose.position.y,
+                    "z": fused_msg.pose.position.z,
+                },
+                "orientation": {
+                    "x": fused_msg.pose.orientation.x,
+                    "y": fused_msg.pose.orientation.y,
+                    "z": fused_msg.pose.orientation.z,
+                    "w": fused_msg.pose.orientation.w,
+                },
+            }
+
+        if "/cube_pose/azimuth_deg" in msgs_to_save:
+            metadata["azimuth_deg"] = msgs_to_save["/cube_pose/azimuth_deg"].data
+
 
         # Color image info
-        if "/cam_up/color/image_raw" in self.latest_msgs:
-            img_msg = self.latest_msgs["/cam_up/color/image_raw"]
+        if "/cam_up/color/image_raw" in msgs_to_save:
+            img_msg = msgs_to_save["/cam_up/color/image_raw"]
             metadata["color_image"] = {
                 "width": img_msg.width,
                 "height": img_msg.height,
@@ -109,8 +211,8 @@ class SnapshotCaptureNode:
             }
 
         # Depth image info
-        if "/cam_up/depth/image_rect_raw" in self.latest_msgs:
-            depth_msg = self.latest_msgs["/cam_up/depth/image_rect_raw"]
+        if "/cam_up/depth/image_rect_raw" in msgs_to_save:
+            depth_msg = msgs_to_save["/cam_up/depth/image_rect_raw"]
             metadata["depth_image"] = {
                 "width": depth_msg.width,
                 "height": depth_msg.height,
@@ -120,8 +222,8 @@ class SnapshotCaptureNode:
             }
 
         # Camera info
-        if "/cam_up/color/camera_info" in self.latest_msgs:
-            cam_info = self.latest_msgs["/cam_up/color/camera_info"]
+        if "/cam_up/color/camera_info" in msgs_to_save:
+            cam_info = msgs_to_save["/cam_up/color/camera_info"]
             metadata["camera_info"]["color"] = {
                 "frame_id": cam_info.header.frame_id,
                 "stamp": cam_info.header.stamp.to_sec(),
@@ -132,8 +234,8 @@ class SnapshotCaptureNode:
                 "distortion_model": cam_info.distortion_model,
             }
 
-        if "/cam_up/depth/camera_info" in self.latest_msgs:
-            cam_info = self.latest_msgs["/cam_up/depth/camera_info"]
+        if "/cam_up/depth/camera_info" in msgs_to_save:
+            cam_info = msgs_to_save["/cam_up/depth/camera_info"]
             metadata["camera_info"]["depth"] = {
                 "frame_id": cam_info.header.frame_id,
                 "stamp": cam_info.header.stamp.to_sec(),
@@ -144,8 +246,8 @@ class SnapshotCaptureNode:
                 "distortion_model": cam_info.distortion_model,
             }
         
-        if "/fix" in self.latest_msgs:
-            gps_msg = self.latest_msgs["/fix"]
+        if "/fix" in msgs_to_save:
+            gps_msg = msgs_to_save["/fix"]
             metadata["gps"] = {
                 "frame_id": gps_msg.header.frame_id,
                 "stamp": gps_msg.header.stamp.to_sec(),
@@ -176,22 +278,91 @@ class SnapshotCaptureNode:
             rospy.logwarn("Could not save depth .npy: %s", str(e))
 
     def capture_snapshot(self):
+        if self.capture_t_ref is None:
+            rospy.logwarn("No reference timestamp available for snapshot.")
+            return
+
+        t_ref = self.capture_t_ref
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_dir = os.path.join(self.output_root, f"snapshot_{timestamp}")
         os.makedirs(snapshot_dir, exist_ok=True)
 
         bag_path = os.path.join(snapshot_dir, f"snapshot_{timestamp}.bag")
 
-        # Save bag with latest messages
+        # Build a synchronized subset of topics to save
+        msgs_to_save = {}
+
+        # 1) Always anchor on /cube_pose/current
+        if "/cube_pose/current" in self.latest_msgs:
+            cube_pose_current_msg = self.latest_msgs["/cube_pose/current"]
+            if self.is_close_in_time(cube_pose_current_msg, t_ref, tol=0.001):
+                msgs_to_save["/cube_pose/current"] = cube_pose_current_msg
+                visible_ids = list(cube_pose_current_msg.ids)
+            else:
+                rospy.logwarn("Current /cube_pose/current is not aligned with t_ref, aborting snapshot.")
+                return
+        else:
+            rospy.logwarn("No /cube_pose/current available, aborting snapshot.")
+            return
+        
+        # 2) Save fused pose if aligned
+        if "/cube_pose/fused" in self.latest_msgs:
+            fused_msg = self.latest_msgs["/cube_pose/fused"]
+            if self.is_close_in_time(fused_msg, t_ref, tol=0.03):
+                msgs_to_save["/cube_pose/fused"] = fused_msg
+            else:
+                rospy.logwarn("Skipping /cube_pose/fused (timestamp too old/new).")
+
+        # 2b) Save azimuth if available
+        if "/cube_pose/azimuth_deg" in self.latest_msgs:
+            msgs_to_save["/cube_pose/azimuth_deg"] = self.latest_msgs["/cube_pose/azimuth_deg"]
+
+        # 3) Save only the single-tag topics that are CURRENTLY visible and time-aligned
+        for tag_id in visible_ids:
+            tag_topic = f"/cube_pose/tag{tag_id}"
+            if tag_topic in self.latest_msgs:
+                tag_msg = self.latest_msgs[tag_topic]
+                if self.is_close_in_time(tag_msg, t_ref, tol=0.03):
+                    msgs_to_save[tag_topic] = tag_msg
+                else:
+                    rospy.logwarn("Skipping stale %s (timestamp too old/new).", tag_topic)
+
+        # 4) Save current tag detections if aligned
+        if "/tag_detections" in self.latest_msgs:
+            det_msg = self.latest_msgs["/tag_detections"]
+            if self.is_close_in_time(det_msg, t_ref, tol=0.03):
+                msgs_to_save["/tag_detections"] = det_msg
+
+        # 5) Save camera topics closest to this frame
+        for cam_topic in [
+            "/cam_up/color/image_raw",
+            "/cam_up/color/camera_info",
+            "/cam_up/depth/image_rect_raw",
+            "/cam_up/depth/camera_info",
+            "/fix",
+        ]:
+            if cam_topic in self.latest_msgs:
+                msg = self.latest_msgs[cam_topic]
+
+                # More permissive tolerance for sensors
+                if hasattr(msg, "header"):
+                    tol = 0.10 if "image" in cam_topic or "camera_info" in cam_topic else 0.20
+                    if self.is_close_in_time(msg, t_ref, tol=tol):
+                        msgs_to_save[cam_topic] = msg
+                    else:
+                        rospy.logwarn("Skipping %s (not close enough to snapshot time).", cam_topic)
+                else:
+                    msgs_to_save[cam_topic] = msg
+
+        # Save bag with synchronized messages only
         with rosbag.Bag(bag_path, "w") as bag:
-            for topic, msg in self.latest_msgs.items():
+            for topic, msg in msgs_to_save.items():
                 if hasattr(msg, "header"):
                     bag.write(topic, msg, msg.header.stamp)
                 else:
                     bag.write(topic, msg, rospy.Time.now())
 
-        # Save readable files
-        for topic, msg in self.latest_msgs.items():
+        for topic, msg in msgs_to_save.items():
             safe_name = topic.strip("/").replace("/", "__")
 
             if topic == "/cam_up/color/image_raw":
@@ -212,12 +383,21 @@ class SnapshotCaptureNode:
                     rospy.logwarn("Failed saving depth image: %s", str(e))
                     self.msg_to_yaml_file(msg, os.path.join(snapshot_dir, f"{safe_name}.txt"))
 
+            elif topic == "/cube_pose/current":
+                pass
             else:
                 self.msg_to_yaml_file(msg, os.path.join(snapshot_dir, f"{safe_name}.txt"))
 
-        self.write_metadata_yaml(snapshot_dir, timestamp)
+        if "/cube_pose/current" in msgs_to_save:
+            self.write_combined_cube_pose_file(
+                snapshot_dir,
+                msgs_to_save["/cube_pose/current"]
+            )
 
-        rospy.loginfo("Snapshot saved in: %s", snapshot_dir)
+
+        self.write_metadata_yaml(snapshot_dir, timestamp,msgs_to_save)
+
+        rospy.loginfo("Synchronized snapshot saved in: %s", snapshot_dir)
 
     def get_key(self):
         fd = sys.stdin.fileno()
@@ -238,7 +418,8 @@ class SnapshotCaptureNode:
 
             if key is not None:
                 if key.lower() == "c":
-                    self.capture_snapshot()
+                    self.capture_requested = True
+                    rospy.loginfo("Capture requested: waiting for next /cube_pose/current frame...")
                 elif key.lower() == "q":
                     rospy.loginfo("Exiting snapshot_capture_node.")
                     break
