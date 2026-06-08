@@ -33,6 +33,9 @@ class SnapshotCaptureNode:
             os.path.expanduser("~/apriltag_snapshots")
         )
 
+        self.auto_capture_rate = rospy.get_param("~auto_capture_rate", 0.0)  # Hz, 0 = disabled
+        self.last_auto_capture_time = rospy.Time(0)
+
         self.topics = {
             "/camera/color/image_raw": Image,
             "/camera/color/camera_info": CameraInfo,
@@ -63,7 +66,12 @@ class SnapshotCaptureNode:
         os.makedirs(self.output_root, exist_ok=True)
 
         rospy.loginfo("snapshot_capture_node started.")
-        rospy.loginfo("Press 'c' to capture snapshot, 'q' to quit.")
+
+        if self.auto_capture_rate > 0:
+            rospy.loginfo("Auto-capture enabled at %.2f Hz. Press 'q' to quit.", self.auto_capture_rate)
+        else:
+            rospy.loginfo("Press 'c' to capture snapshot, 'q' to quit.")
+
 
     def generic_callback(self, msg, topic_name):
         self.latest_msgs[topic_name] = msg
@@ -254,10 +262,19 @@ class SnapshotCaptureNode:
 
             if key is not None:
                 if key.lower() == "c":
-                    self.capture_snapshot()
+                    self.capture_requested = True
+                    rospy.loginfo("Capture requested: waiting for next /cube_pose/current frame...")
                 elif key.lower() == "q":
                     rospy.loginfo("Exiting snapshot_capture_node.")
                     break
+
+            # Auto-capture logic
+            if self.auto_capture_rate > 0 and not self.capture_requested and not self.capture_in_progress:
+                interval = rospy.Duration(1.0 / self.auto_capture_rate)
+                if (rospy.Time.now() - self.last_auto_capture_time) >= interval:
+                    self.capture_requested = True
+                    self.last_auto_capture_time = rospy.Time.now()
+                    rospy.loginfo("Auto-capture triggered.")
 
             rate.sleep()
 
