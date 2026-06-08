@@ -69,16 +69,30 @@ rostopic list
 ```
 If the estimator is working correctly, you should see the following topics:
 
-/cube_pose/all <br />
-/cube_pose/all_ids <br />
+/cube_pose/fused
+/cube_pose/azimuth_deg
 
-These two topics contain, respectively, the poses of all the AprilTags being detected and the corresponding IDs in order of publication (the first ID published on the /cube_pose/all_ids corresponds to the first pose published in /cube_pose/all)   
+These two topics contain, respectively, the mean pose of the AprilTags cube, computed from all the visible faces, and the corresponding heading disalignment with respect to the tag aligned with the front (or rear) of the car.
 
 # Data Capturing 
 To use the Data Capturing system, launch the following command:
+
+*SNAPSHOT BY PRESSING BUTTON*
 ```bash
 roslaunch cube_pose_estimator snapshot_capture.launch
 ```
+
+*AUTO-CAPTURING SNAPSHOT*
+
+```bash
+roslaunch cube_pose_estimator snapshot_capture.launch _auto_capture_rate:=0.5 
+```
+or modify the ROS parameter for the capturing rate in the snapshot_capture.launch file:
+<param name="auto_capture_rate" value="1.0"/>  <!-- 1 Hz -->
+
+and then launch:
+roslaunch cube_pose_estimator snapshot_capture.launch
+
 You should see the following log:
 
 SUMMARY
@@ -97,7 +111,10 @@ ROS_MASTER_URI=http://localhost:11311 <br />
 
 process[snapshot_capture_node-1]: started with pid [222148] <br />
 [INFO] [1777909940.104008]: snapshot_capture_node started. <br />
+
 [INFO] [1777909940.104976]: Press 'c' to capture snapshot, 'q' to quit. <br />
+or
+[INFO] [1777909940.104976]: Auto-capture enabled at %.2f Hz. Press 'q' to quit. <br />
 
 Every time you press the "c" button on the keyboard, the script subscribes to the following topics (IF they are being published) and saves the data at that exact moment:
 
@@ -106,13 +123,14 @@ Every time you press the "c" button on the keyboard, the script subscribes to th
   "/camera/depth/image_rect_raw": Image, <br />
   "/camera/depth/camera_info": CameraInfo, <br />
   "/tag_detections": AprilTagDetectionArray, <br />
-  "/cube_pose/all": PoseArray, <br />
-  "/cube_pose/all_ids": Int32MultiArray, <br />
   "/cube_pose/tag10": PoseStamped, <br />
   "/cube_pose/tag11": PoseStamped, <br />
   "/cube_pose/tag12": PoseStamped, <br />
   "/cube_pose/tag13": PoseStamped, <br />
   "/cube_pose/tag14": PoseStamped, <br />
+  "/cube_pose/current": CubePoseArray, <br />
+  "/cube_pose/fused": PoseStamped, <br />
+  "/cube_pose/azimuth_deg": Float64, <br />
   "/fix": NavSatFix, <br />
 
 It also saves the RGB and depth image in .png format.
@@ -144,17 +162,30 @@ rostopic list
 ```
 If the estimator is working correctly, you should see the following topics:
 
-/cube_pose/all <br />
-/cube_pose/all_ids <br />
+/cube_pose/fused
+/cube_pose/azimuth_deg
 
-These two topics contain, respectively, the poses of all the AprilTags being detected and the corresponding IDs in order of publication (the first ID published on the /cube_pose/all_ids corresponds to the first pose published in /cube_pose/all)   
+These two topics contain, respectively, the mean pose of the AprilTags cube, computed from all the visible faces, and the corresponding heading disalignment with respect to the tag aligned with the front (or rear) of the car.
 
 # Data Capturing 
 To use the Data Capturing system, launch the following command:
+
+*SNAPSHOT BY PRESSING BUTTON*
 ```bash
 roslaunch cube_pose_estimator snapshot_capture_cameras.launch
 ```
-You should see the following log:
+
+*AUTO-CAPTURING SNAPSHOT*
+
+```bash
+roslaunch cube_pose_estimator snapshot_capture_cameras.launch _auto_capture_rate:=0.5 
+```
+or modify the ROS parameter for the capturing rate in the snapshot_capture_cameras.launch file:
+<param name="auto_capture_rate" value="1.0"/>  <!-- 1 Hz -->
+
+and then launch:
+roslaunch cube_pose_estimator snapshot_capture.launch
+
 
 SUMMARY
 ======== <br />
@@ -173,6 +204,8 @@ ROS_MASTER_URI=http://localhost:11311 <br />
 process[snapshot_capture_node-1]: started with pid [222148] <br />
 [INFO] [1777909940.104008]: snapshot_capture_node started. <br />
 [INFO] [1777909940.104976]: Press 'c' to capture snapshot, 'q' to quit. <br />
+or
+[INFO] [1777909940.104976]: Auto-capture enabled at %.2f Hz. Press 'q' to quit. <br />
 
 Every three times you press the ">" button on the pointer (or press the "c" button on the keyboard), the script subscribes to the following topics (IF they are being published) and saves the data at that exact moment:
 
@@ -181,13 +214,14 @@ Every three times you press the ">" button on the pointer (or press the "c" butt
   "/camera_up/depth/image_rect_raw": Image, <br />
   "/camera_up/depth/camera_info": CameraInfo, <br />
   "/tag_detections": AprilTagDetectionArray, <br />
-  "/cube_pose/all": PoseArray, <br />
-  "/cube_pose/all_ids": Int32MultiArray, <br />
   "/cube_pose/tag10": PoseStamped, <br />
   "/cube_pose/tag11": PoseStamped, <br />
   "/cube_pose/tag12": PoseStamped, <br />
   "/cube_pose/tag13": PoseStamped, <br />
   "/cube_pose/tag14": PoseStamped, <br />
+  "/cube_pose/current": CubePoseArray, <br />
+  "/cube_pose/fused": PoseStamped, <br />
+  "/cube_pose/azimuth_deg": Float64, <br />
   "/fix": NavSatFix, <br />
 
 It also saves the RGB and depth image in .png format.
