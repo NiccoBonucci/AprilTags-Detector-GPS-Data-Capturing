@@ -76,9 +76,23 @@ These two topics contain, respectively, the mean pose of the AprilTags cube, com
 
 # Data Capturing 
 To use the Data Capturing system, launch the following command:
+
+*SNAPSHOT BY PRESSING BUTTON*
 ```bash
 roslaunch cube_pose_estimator snapshot_capture.launch
 ```
+
+*AUTO-CAPTURING SNAPSHOT*
+
+```bash
+roslaunch cube_pose_estimator snapshot_capture.launch _auto_capture_rate:=0.5 
+```
+or modify the ROS parameter for the capturing rate in the snapshot_capture.launch file:
+<param name="auto_capture_rate" value="1.0"/>  <!-- 1 Hz -->
+
+and then launch:
+roslaunch cube_pose_estimator snapshot_capture.launch
+
 You should see the following log:
 
 SUMMARY
@@ -97,7 +111,10 @@ ROS_MASTER_URI=http://localhost:11311 <br />
 
 process[snapshot_capture_node-1]: started with pid [222148] <br />
 [INFO] [1777909940.104008]: snapshot_capture_node started. <br />
+
 [INFO] [1777909940.104976]: Press 'c' to capture snapshot, 'q' to quit. <br />
+or
+[INFO] [1777909940.104976]: Auto-capture enabled at %.2f Hz. Press 'q' to quit. <br />
 
 Every time you press the "c" button on the keyboard, the script subscribes to the following topics (IF they are being published) and saves the data at that exact moment:
 
@@ -152,10 +169,23 @@ These two topics contain, respectively, the mean pose of the AprilTags cube, com
 
 # Data Capturing 
 To use the Data Capturing system, launch the following command:
+
+*SNAPSHOT BY PRESSING BUTTON*
 ```bash
 roslaunch cube_pose_estimator snapshot_capture_cameras.launch
 ```
-You should see the following log:
+
+*AUTO-CAPTURING SNAPSHOT*
+
+```bash
+roslaunch cube_pose_estimator snapshot_capture_cameras.launch _auto_capture_rate:=0.5 
+```
+or modify the ROS parameter for the capturing rate in the snapshot_capture_cameras.launch file:
+<param name="auto_capture_rate" value="1.0"/>  <!-- 1 Hz -->
+
+and then launch:
+roslaunch cube_pose_estimator snapshot_capture.launch
+
 
 SUMMARY
 ======== <br />
@@ -174,6 +204,8 @@ ROS_MASTER_URI=http://localhost:11311 <br />
 process[snapshot_capture_node-1]: started with pid [222148] <br />
 [INFO] [1777909940.104008]: snapshot_capture_node started. <br />
 [INFO] [1777909940.104976]: Press 'c' to capture snapshot, 'q' to quit. <br />
+or
+[INFO] [1777909940.104976]: Auto-capture enabled at %.2f Hz. Press 'q' to quit. <br />
 
 Every three times you press the ">" button on the pointer (or press the "c" button on the keyboard), the script subscribes to the following topics (IF they are being published) and saves the data at that exact moment:
 
