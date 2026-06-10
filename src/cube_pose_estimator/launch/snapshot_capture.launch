@@ -4,6 +4,6 @@
         name="snapshot_capture_node"
         output="screen">
     <param name="output_root" value="$(find cube_pose_estimator)/apriltag_snapshots" />
-    <param name="auto_capture_rate" value="0.0"/>  <!-- 1 Hz -->
+    <param name="auto_capture_rate" value="$(arg auto_capture_rate)"/>
   </node>
 </launch>
